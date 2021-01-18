@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.js"></script>
+  <title>Using cocossd for image classification</title>
+  <style>
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: #333;
+  }
+
+  button,
+  p,
+  video {
+    display: block;
+    margin: auto;
+  }
+
+  canvas {
+    display: block;
+    margin: auto;
+  }
+
+  button {
+    margin: auto;
+    text-align: center;
+    box-shadow: 0px 1px 50px 3px #1c1b18;
+    background: linear-gradient(to bottom, #eae0c2 5%, #ccc2a6 100%);
+    background-color: #eae0c2;
+    border-radius: 5px;
+    display: block;
+    cursor: pointer;
+    color: #000000;
+    font-family: Arial;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 13px 76px;
+    text-decoration: none;
+    text-shadow: 0px 1px 50px #ffffff;
+  }
+
+  p {
+    text-align: center;
+    font-size: 2.2rem;
+    color: white;
+  }
+  </style>
+</head>
+
+<body>
+  <p id="debugPara"></p>
+  <script>
+  var synthesis = window.speechSynthesis;
+
+  var debugPara = document.getElementById('debugPara');
+  debugPara.innerHTML = 'The model has not loaded yet please wait!';
+
+  var myp5 = new p5(function(sketchPointer) {
+    var video;
+    var model;
+    var button;
+
+    function utterIfPossible(text) {
+      if (synthesis) {
+        synthesis.speak(new SpeechSynthesisUtterance(text));
+        // console.log(text);
+        debugPara.innerHTML = text;
+      } else {
+        // console.log(text);
+        debugPara.innerHTML = text;
+      }
+    }
+
+    sketchPointer.preload = function() {
+      model = ml5.objectDetector('cocossd', {}, function() {
+        utterIfPossible('The model is loaded correctly!');
+      });
+    };
+
+    sketchPointer.setup = function() {
+      sketchPointer.createCanvas(640, 480);
+      sketchPointer.background('purple');
+      button = sketchPointer.createButton('Take Snapshot!');
+      video = sketchPointer.createCapture(sketchPointer.VIDEO, function() {
+        utterIfPossible('The camera is ready to take pictures!');
+      });
+      video.size(640, 480);
+
+
+      button.mousePressed(function() {
+        sketchPointer.image(video, 0, 0, sketchPointer.width, sketchPointer.height);
+        utterIfPossible('The model has started predicting');
+
+        model.detect(video, function(error, results) {
+          if (error) {
+            utterIfPossible('Some error has occoured during prediction, reaload the page and try again!');
+            console.error(error);
+          } else {
+            utterIfPossible('The predictions are done!')
+            for (let result of results) {
+              if (result.label == 'person') {
+                sketchPointer.fill(255, 0, 0, 80);
+              } else {
+                sketchPointer.fill(255, 255, 0, 80);
+              }
+              sketchPointer.rect(result.x, result.y, result.width, result.height);
+              sketchPointer.stroke(0);
+              sketchPointer.strokeWeight(1.5);
+              sketchPointer.textSize(18);
+              sketchPointer.text(`${result.label}~${Math.round(result.confidence * 100)}%`,
+                result.x + 12, result.y + 24
+              );
+            }
+          }
+        });
+      });
+    };
+  });
+  </script>
+</body>
+
+</html>

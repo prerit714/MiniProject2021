@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://unpkg.com/ml5@latest/dist/ml5.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.1.9/p5.js"></script>
+  <title>Object cocossd for live camera-feed classification</title>
+  <style>
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: #333;
+  }
+
+  #debugPara {
+    text-align: center;
+    font-size: 2.2rem;
+    color: white;
+  }
+
+  canvas {
+    display: block;
+    margin: auto;
+  }
+  </style>
+</head>
+
+<body>
+  <p id="debugPara"></p>
+  <script>
+  var pointerToCanvas = null;
+  var debugPara = document.getElementById('debugPara');
+  debugPara.innerHTML = 'The model has not loaded yet, please wait!';
+  const myp5Element = new p5(function(sketchPointer) {
+    let videoElementForCapturingImages = null;
+    let cocossdClassifier = null;
+    let classificationsObtained = [];
+    let speechSynthesiser = window.speechSynthesis;
+    sketchPointer.preload = function() {
+      videoElementForCapturingImages = sketchPointer.createCapture(sketchPointer.VIDEO, function() {
+        utterIfPossible('The video element is ready to be used!');
+        cocossdClassifier = ml5.objectDetector('cocossd', readyClassifierCallback);
+      });
+      videoElementForCapturingImages.size(640, 480);
+      videoElementForCapturingImages.hide();
+    };
+    sketchPointer.setup = function() {
+      pointerToCanvas = sketchPointer.createCanvas(640, 480);
+      sketchPointer.background('purple');
+    };
+    sketchPointer.draw = function() {
+      sketchPointer.image(videoElementForCapturingImages, 0, 0);
+      for (var i = 0; i < classificationsObtained.length; i++) {
+        let result = classificationsObtained[i];
+        if (result.label == 'person') {
+          sketchPointer.fill(255, 0, 0, 80);
+        } else {
+          sketchPointer.fill(255, 255, 0, 80);
+        }
+        sketchPointer.rect(result.x, result.y, result.width, result.height);
+        sketchPointer.stroke(0);
+        sketchPointer.strokeWeight(1.5);
+        sketchPointer.textSize(18);
+        sketchPointer.text(`${result.label}~${Math.round(result.confidence * 100)}%`, result.x + 12, result.y + 24);
+      }
+    };
+
+    function utterIfPossible(text) {
+      if (speechSynthesiser) {
+        speechSynthesiser.speak(new SpeechSynthesisUtterance(text));
+      }
+      debugPara.innerHTML = text;
+    }
+
+    function readyClassifierCallback() {
+      utterIfPossible('Classifier is ready to be used for prediction!');
+      cocossdClassifier.detect(videoElementForCapturingImages, classificationDoneCallback);
+    }
+
+    function classificationDoneCallback(error, resultsObtained) {
+      if (error) {
+        console.error(error);
+      } else {
+        utterIfPossible('The predictions are done!');
+      }
+      classificationsObtained = resultsObtained;
+      cocossdClassifier.detect(videoElementForCapturingImages, classificationDoneCallback)
+    }
+  });
+  </script>
+</body>
+
+</html>
